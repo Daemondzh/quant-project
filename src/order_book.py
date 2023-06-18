@@ -6,18 +6,18 @@ def create_order_book(df, timestamps):
 
     # Initialize order book and dictionary to store order books for different timestamps
     order_book = pd.DataFrame(columns=['appl_seq_num', 'side', 'price', 'order_qty'])
-    new_orders = []  # List to collect new orders
+    new_orders = pd.DataFrame(columns=['appl_seq_num', 'side', 'price', 'order_qty'])
     order_books = {ts: None for ts in timestamps}
 
     # Loop through sorted dataframe
-    for idx, row in df.sort_values('transact_time').iterrows():
+    for idx, row in df.iterrows():
         # If the timestamp of the current row is greater than the current timestamp in the list,
         # finalize the order book for the current timestamp, then move to the next timestamp
         while ts_index < len(timestamps) and row['transact_time'] > timestamps[ts_index]:
-            # Convert new orders to DataFrame and add them to the order book
-            if new_orders:
-                order_book = pd.concat([order_book, pd.DataFrame(new_orders, columns=order_book.columns)], ignore_index=True)
-                new_orders = []
+            # Concat new orders to the order book
+            if not new_orders.empty:
+                order_book = pd.concat([order_book, new_orders], ignore_index=True)
+                new_orders = new_orders.iloc[0:0]  # Clear new_orders DataFrame
 
             bid_side = order_book[order_book['side'] == 1].sort_values(by='price', ascending=False).head(10)
             offer_side = order_book[order_book['side'] == 2].sort_values(by='price', ascending=True).head(10)
@@ -25,23 +25,29 @@ def create_order_book(df, timestamps):
             ts_index += 1
 
         if row['order_type'] in ['1', '2', 'U']:  # New order
-            new_orders.append(row[['appl_seq_num', 'side', 'price', 'order_qty']].to_dict())
+            new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            new_orders = pd.concat([new_orders, new_order], ignore_index=True)
         elif row['order_type'] == '4':  # Cancel order
             if row['bid_appl_seq_num'] != 0:
+                new_orders = new_orders[new_orders['appl_seq_num'] != row['bid_appl_seq_num']]
                 order_book = order_book[order_book['appl_seq_num'] != row['bid_appl_seq_num']]
-            elif row['offer_appl_seq_num'] != 0:
+            if row['offer_appl_seq_num'] != 0:
+                new_orders = new_orders[new_orders['appl_seq_num'] != row['offer_appl_seq_num']]
                 order_book = order_book[order_book['appl_seq_num'] != row['offer_appl_seq_num']]
         elif row['order_type'] == 'F':  # Execute trade
+            new_orders.loc[new_orders['appl_seq_num'] == row['bid_appl_seq_num'], 'order_qty'] -= row['order_qty']
+            new_orders.loc[new_orders['appl_seq_num'] == row['offer_appl_seq_num'], 'order_qty'] -= row['order_qty']
+            new_orders = new_orders[new_orders['order_qty'] > 0]
             order_book.loc[order_book['appl_seq_num'] == row['bid_appl_seq_num'], 'order_qty'] -= row['order_qty']
             order_book.loc[order_book['appl_seq_num'] == row['offer_appl_seq_num'], 'order_qty'] -= row['order_qty']
             order_book = order_book[order_book['order_qty'] > 0]
 
     # If there are still timestamps left after looping through the dataframe, finalize the order books for those timestamps
     while ts_index < len(timestamps):
-        # Convert new orders to DataFrame and add them to the order book
-        if new_orders:
-            order_book = pd.concat([order_book, pd.DataFrame(new_orders, columns=order_book.columns)], ignore_index=True)
-            new_orders = []
+        # Concat new orders to the order book
+        if not new_orders.empty:
+            order_book = pd.concat([order_book, new_orders], ignore_index=True)
+            new_orders = new_orders.iloc[0:0]  # Clear new_orders DataFrame
 
         bid_side = order_book[order_book['side'] == 1].sort_values(by='price', ascending=False).head(10)
         offer_side = order_book[order_book['side'] == 2].sort_values(by='price', ascending=True).head(10)
@@ -49,6 +55,7 @@ def create_order_book(df, timestamps):
         ts_index += 1
 
     return order_books
+
 
 timestamps = ['2020-01-10 09:30:00', '2020-01-10 10:30:00', '2020-01-10 13:30:00']
 df = pd.read_csv('/root/quant-project/data/sz_level3/000069/000069_20200110.csv.gz', compression='gzip')
