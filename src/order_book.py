@@ -24,8 +24,22 @@ def create_order_book(df, timestamps):
             order_books[timestamps[ts_index]] = (bid_side, offer_side)
             ts_index += 1
 
-        if row['order_type'] in ['1', '2', 'U']:  # New order
+        if row['order_type'] == '2':  # New order
             new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            new_orders = pd.concat([new_orders, new_order], ignore_index=True)
+        elif row['order_type'] == '1':
+            new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            if row['side'] == 2:
+                new_order['price'] = max(new_orders[new_orders['side'] == 1]['price'].max(), bid_side.iloc[0]['price'])
+            else:
+                new_order['price'] = min(new_orders[new_orders['side'] == 2]['price'].min(), offer_side.iloc[0]['price'])
+            new_orders = pd.concat([new_orders, new_order], ignore_index=True)
+        elif row['order_type'] == 'U':
+            new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            if row['side'] == 1:
+                new_order['price'] = max(new_orders[new_orders['side'] == 1]['price'].max(), bid_side.iloc[0]['price'])
+            else:
+                new_order['price'] = min(new_orders[new_orders['side'] == 2]['price'].min(), offer_side.iloc[0]['price'])
             new_orders = pd.concat([new_orders, new_order], ignore_index=True)
         elif row['order_type'] == '4':  # Cancel order
             if row['bid_appl_seq_num'] != 0:
@@ -58,19 +72,19 @@ def create_order_book(df, timestamps):
 
 
 timestamps = ['2020-01-10 09:30:00', '2020-01-10 10:30:00', '2020-01-10 13:30:00']
-df = pd.read_csv('/root/quant-project/data/sz_level3/000069/000069_20200110.csv.gz', compression='gzip')
-df['transact_time'] = pd.to_datetime(df['transact_time'], format="%Y%m%d%H%M%S%f")
-df['price'] = df['price'] / 10000  # Data cleaning, restore the price to its real value
-df['order_qty'] = df['order_qty'] / 100  # Data cleaning, restore the order quantity to its real value
-stock_code = '000069'
-df['stock_code'] = stock_code
+for stock_code in  ['000069','000566','000876','002304','002841','002918']:
+    df = pd.read_csv('/workspaces/quant-project/data/sz_level3/'+stock_code+'/'+stock_code+'_20200110.csv.gz', compression='gzip')
+    df['transact_time'] = pd.to_datetime(df['transact_time'], format="%Y%m%d%H%M%S%f")
+    df['price'] = df['price'] / 10000  # Data cleaning, restore the price to its real value
+    df['order_qty'] = df['order_qty'] / 100  # Data cleaning, restore the order quantity to its real value
+    df['stock_code'] = stock_code
 
-order_books = create_order_book(df, timestamps)
+    order_books = create_order_book(df, timestamps)
 
-for timestamp, (bid_side, offer_side) in order_books.items():
-    print("Order book at", timestamp)
-    print("Bid side:")
-    print(bid_side)
-    print("Offer side:")
-    print(offer_side)
-
+    for timestamp, (bid_side, offer_side) in order_books.items():
+        print('Stock Code:', stock_code)
+        print("Order book at", timestamp)
+        print("Bid side:")
+        print(bid_side)
+        print("Offer side:")
+        print(offer_side)
