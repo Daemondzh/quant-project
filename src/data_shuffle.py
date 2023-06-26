@@ -1,11 +1,14 @@
 import pandas as pd
+from datetime import datetime, timedelta
+import os
 
 def create_order_book(df, timestamps):
-    timestamps = sorted(pd.to_datetime(timestamps))
+    timestamps = pd.to_datetime(timestamps)
     ts_index = 0
 
     # Initialize order book and dictionary to store order books for different timestamps
     order_book = pd.DataFrame(columns=['appl_seq_num', 'side', 'price', 'order_qty'])
+    # bid_side = pd.DataFrame()
     new_orders = pd.DataFrame(columns=['appl_seq_num', 'side', 'price', 'order_qty'])
     order_books = {ts: None for ts in timestamps}
 
@@ -19,13 +22,27 @@ def create_order_book(df, timestamps):
                 order_book = pd.concat([order_book, new_orders], ignore_index=True)
                 new_orders = new_orders.iloc[0:0]  # Clear new_orders DataFrame
 
-            bid_side = order_book[order_book['side'] == 1].sort_values(by='price', ascending=False).head(1)
-            offer_side = order_book[order_book['side'] == 2].sort_values(by='price', ascending=True).head(1)
+            bid_side = order_book[order_book['side'] == 1].groupby('price')['order_qty'].sum().reset_index().sort_values(by='price', ascending=False).head(10)
+            offer_side = order_book[order_book['side'] == 2].groupby('price')['order_qty'].sum().reset_index().sort_values(by='price', ascending=True).head(10)
             order_books[timestamps[ts_index]] = (bid_side, offer_side)
             ts_index += 1
 
-        if row['order_type'] in ['1', '2', 'U']:  # New order
+        if row['order_type'] == '2':  # New order
             new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            new_orders = pd.concat([new_orders, new_order], ignore_index=True)
+        elif row['order_type'] == '1':
+            new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            if row['side'] == 2:
+                new_order['price'] = max(new_orders[new_orders['side'] == 1]['price'].max(), order_book[order_book['side'] == 1]['price'].max())
+            else:
+                new_order['price'] = min(new_orders[new_orders['side'] == 2]['price'].min(), order_book[order_book['side'] == 2]['price'].min())
+            new_orders = pd.concat([new_orders, new_order], ignore_index=True)
+        elif row['order_type'] == 'U':
+            new_order = pd.DataFrame([row[['appl_seq_num', 'side', 'price', 'order_qty']]])
+            if row['side'] == 1:
+                new_order['price'] = max(new_orders[new_orders['side'] == 1]['price'].max(), order_book[order_book['side'] == 1]['price'].max())
+            else:
+                new_order['price'] = min(new_orders[new_orders['side'] == 2]['price'].min(), order_book[order_book['side'] == 2]['price'].min())
             new_orders = pd.concat([new_orders, new_order], ignore_index=True)
         elif row['order_type'] == '4':  # Cancel order
             if row['bid_appl_seq_num'] != 0:
@@ -59,37 +76,83 @@ def create_order_book(df, timestamps):
 
     return order_books
 
-from datetime import datetime, timedelta
+def data_generate(directory, stock_code):
+    # Create date range
+    date_range = pd.date_range(start="2020-01-23", end="2020-07-07")
 
-timestamps = []
-start_time = datetime(2020, 1, 10, 9, 30, 0)  # Specify your desired start time
-end_time = datetime(2020, 1, 10, 13, 30, 0)  # Specify your desired end time
+    # Create an output file for the stock code
+    output_file = open(stock_code + '.txt', 'w')
 
-# Define the time step as 3 seconds
-time_step = timedelta(seconds=7200)
+    for date in date_range:
+    # Format date as a string in the form YYYY-MM-DD
+        timestamps = []
+        date_str = date.strftime("%Y%m%d")
 
-# Calculate the total number of steps
-num_steps = int((end_time - start_time) / time_step) + 1
+        # Construct the full path of the file
+        file_name = stock_code + "_" + date_str+ ".csv.gz"
+        file_path = os.path.join(directory, file_name)
 
-# Generate and print timestamps
-current_time = start_time
-for _ in range(num_steps):
-    timestamps.append(current_time.strftime("%Y-%m-%d %H:%M:%S"))
-    current_time += time_step
+        # Check if a file with this name exists in the directory
+        if os.path.isfile(file_path):
+            do_flag = True
+            # print("File '{file_name}' exists.")
+        else:
+            # print("File '{file_name}' does not exist.")
+            continue
 
-df = pd.read_csv('/root/quant-project/data/sz_level3/000069/000069_20200110.csv.gz', compression='gzip')
-df['transact_time'] = pd.to_datetime(df['transact_time'], format="%Y%m%d%H%M%S%f")
-df['price'] = df['price'] / 10000  # Data cleaning, restore the price to its real value
-df['order_qty'] = df['order_qty'] / 100  # Data cleaning, restore the order quantity to its real value
-stock_code = '000069'
-df['stock_code'] = stock_code
+        time_0 = datetime.strptime("09:30:00", '%H:%M:%S').time()
+        time_1 = datetime.strptime("11:30:00", '%H:%M:%S').time()
+        start_time = datetime.combine(date, time_0)  # Specify your desired start time
+        end_time = datetime.combine(date, time_1)  # Specify your desired end time
 
-order_books = create_order_book(df, timestamps)
+        # Define the time step as 3 seconds
+        time_step = timedelta(seconds=3)
 
-for timestamp, (bid_side, offer_side) in order_books.items():
-    print("Order book at", timestamp)
-    print("Bid side:")
-    print(bid_side)
-    print("Offer side:")
-    print(offer_side)
+        # Calculate the total number of steps
+        num_steps = int((end_time - start_time) / time_step) + 1
 
+        # Generate and print timestamps
+        current_time = start_time
+        for _ in range(num_steps):
+            timestamps.append(current_time.strftime("%Y-%m-%d %H:%M:%S"))
+            current_time += time_step
+
+        time_0 = datetime.strptime("13:00:00", '%H:%M:%S').time()
+        time_1 = datetime.strptime("15:00:00", '%H:%M:%S').time()
+        start_time = datetime.combine(date, time_0)  # Specify your desired start time
+        end_time = datetime.combine(date, time_1)  # Specify your desired end time
+
+        # Calculate the total number of steps
+        num_steps = int((end_time - start_time) / time_step) + 1
+
+        # Generate and print timestamps
+        current_time = start_time
+        for _ in range(num_steps):
+            timestamps.append(current_time.strftime("%Y-%m-%d %H:%M:%S"))
+            current_time += time_step
+
+        df = pd.read_csv(file_path, compression='gzip')
+        df['transact_time'] = pd.to_datetime(df['transact_time'], format="%Y%m%d%H%M%S%f")
+        df['price'] = df['price'] / 10000  # Data cleaning, restore the price to its real value
+        df['order_qty'] = df['order_qty'] / 100  # Data cleaning, restore the order quantity to its real value
+        df['stock_code'] = stock_code
+
+        order_books = create_order_book(df, timestamps)
+
+        for timestamp, (bid_side, offer_side) in order_books.items():
+            output_file.write("Order book at " + timestamp + "\n")
+            output_file.write("Bid side:\n")
+            output_file.write(bid_side + "\n")
+            output_file.write("Offer side:\n")
+            output_file.write(offer_side + "\n")
+
+    # Close the output file when finished
+    output_file.close()
+    
+# Set the directory where files are stored
+directory = "/workspaces/quant-project/data/sz_level3/000069/"  # Current directory
+
+
+for stock_code in  ['000069','000566','000876','002304','002841','002918']:
+# Enumerate through each date in the range
+    data_generate(directory, stock_code)
