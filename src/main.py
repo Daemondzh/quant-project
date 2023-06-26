@@ -47,9 +47,9 @@ def main():
     #开始训练神经网络
     for epoch in range(1,EPOCH+1):
         predict_list=[]
-        # accuracy_list=[]
+        accuracy_list=[]
         train(model, optimizer, device, epoch, stock_train, criterion, loss_list, iteration)
-        test(model, optimizer, device, stock_test, criterion)
+        test(model, optimizer, device, stock_test, criterion, accuracy_list, predict_list)
     #绘制损失函数下降曲线
     loss_curve(loss_list)
     #绘制测试集pred-real对比曲线

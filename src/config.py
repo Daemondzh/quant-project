@@ -1,7 +1,7 @@
 TRAIN_WEIGHT = 0.9
 EPOCH = 10
 SEQ_LEN = 49
-DIRECTORY = '/workspaces/quant-project/'
+DIRECTORY = '/content/'
 TRAIN_DATA_PATH = "stock_daily/stock_train.csv"
 TEST_DATA_PATH = "stock_daily/stock_test.csv"
 BATCH_SIZE = 32

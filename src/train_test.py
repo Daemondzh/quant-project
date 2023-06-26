@@ -27,12 +27,10 @@ def train(model, optimizer, device, epoch, stock_train, criterion, loss_list, it
             torch.save(model.state_dict,SAVE_PATH+str(epoch)+"_Model.pkl")
             torch.save(optimizer.state_dict,SAVE_PATH+str(epoch)+"_Optimizer.pkl")
 
-def test(model, optimizer, device, stock_test, criterion):
+def test(model, optimizer, device, stock_test, criterion, accuracy_list, predict_list):
     """Testing Function."""
     # Add testing loop here.
     model.eval()
-    global accuracy_list
-    global predict_list
     dataloader=DataLoader(dataset=stock_test,batch_size=BATCH_SIZE,shuffle=False,drop_last=True)
     for i,(data,label) in enumerate(dataloader):
         with torch.no_grad():

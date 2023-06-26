@@ -19,8 +19,8 @@ def create_order_book(df, timestamps):
                 order_book = pd.concat([order_book, new_orders], ignore_index=True)
                 new_orders = new_orders.iloc[0:0]  # Clear new_orders DataFrame
 
-            bid_side = order_book[order_book['side'] == 1].sort_values(by='price', ascending=False).head(10)
-            offer_side = order_book[order_book['side'] == 2].sort_values(by='price', ascending=True).head(10)
+            bid_side = order_book[order_book['side'] == 1].groupby('price')['order_qty'].sum().reset_index().sort_values(by='price', ascending=False).head(10)
+            offer_side = order_book[order_book['side'] == 2].groupby('price')['order_qty'].sum().reset_index().sort_values(by='price', ascending=True).head(10)
             order_books[timestamps[ts_index]] = (bid_side, offer_side)
             ts_index += 1
 
