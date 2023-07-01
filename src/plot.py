@@ -91,4 +91,3 @@ directory  = "D:\Quant\\"
 for stock_code in  ['000069','000566','000876','002304','002841','002918']:
  #Enumerate through each date in the range
     plot_data(directory, stock_code)
-#plot_data(directory, '002918')

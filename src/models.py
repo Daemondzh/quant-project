@@ -13,9 +13,6 @@ class Stock_Data(Dataset):
             train_path=TRAIN_DATA_PATH
             with open(train_path) as f:
                 self.data = np.genfromtxt(f,delimiter = ",")
-                #可以注释
-                #addi=np.zeros((self.data.shape[0],1))
-                #self.data=np.concatenate((self.data,addi),axis=1)
                 self.data=self.data[:,1:5]
             self.label=torch.rand(self.data.shape[0]-SEQ_LEN,1)
             for i in range(len(self.data[0])):
@@ -31,8 +28,6 @@ class Stock_Data(Dataset):
             test_path=TEST_DATA_PATH
             with open(test_path) as f:
                 self.data = np.genfromtxt(f,delimiter = ",")
-                #addi=np.zeros((self.data.shape[0],1))
-                #self.data=np.concatenate((self.data,addi),axis=1)
                 self.data=self.data[:,1:5]
             self.label=torch.rand(self.data.shape[0]-SEQ_LEN,1)
             for i in range(len(self.data[0])):
@@ -52,7 +47,6 @@ class PositionalEncoding(nn.Module):
     # Add rest of the functionality here.
     def __init__(self,d_model,max_len=SEQ_LEN):
         super(PositionalEncoding,self).__init__()
-        #序列长度，dimension d_model
         pe=torch.zeros(max_len,d_model)
         position=torch.arange(0,max_len,dtype=torch.float).unsqueeze(1)
         div_term=torch.exp(torch.arange(0,d_model,2).float()*(-math.log(10000.0)/d_model))
@@ -74,7 +68,6 @@ class TransAm(nn.Module):
         self.pos_encoder=PositionalEncoding(feature_size)
         self.encoder_layer=nn.TransformerEncoderLayer(d_model=feature_size,nhead=4,dropout=dropout)
         self.transformer_encoder=nn.TransformerEncoder(self.encoder_layer,num_layers=num_layers)
-        #全连接层代替decoder
         self.decoder=nn.Linear(feature_size,1)
         self.linear1=nn.Linear(SEQ_LEN,1)
         self.init_weights()
@@ -87,10 +80,6 @@ class TransAm(nn.Module):
 
     def forward(self,src,seq_len=SEQ_LEN):
         src=self.pos_encoder(src)
-        #print(src)
-        #print(self.src_mask)
-        #print(self.src_key_padding_mask)
-        #output=self.transformer_encoder(src,self.src_mask,self.src_key_padding_mask)
         output=self.transformer_encoder(src)
         output=self.decoder(output)
         output=np.squeeze(output)

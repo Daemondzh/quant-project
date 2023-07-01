@@ -35,8 +35,8 @@ def contrast_lines(stock_test, predict_list, std_list, mean_list):
             prediction_list.append(np.array(item[idx]*std_list[0]+mean_list[0]))
             #prediction_list.append(np.array((item[idx])))
     x=np.linspace(1,len(real_list),len(real_list))
-    plt.cla()  # 清除axes，即当前 figure 中的活动的axes，但其他axes保持不变。
-    plt.clf()  # 清除当前 figure 的所有axes，但是不关闭这个 window，所以能继续复用于其他的 plot
+    plt.cla()
+    plt.clf()
     plt.plot(x,np.array(real_list),label="real")
     plt.plot(x,np.array(prediction_list),label="prediction")
     plt.legend()
