@@ -59,17 +59,17 @@ Order Book保存在order_book文件中，样例格式为：
 
 由于3s一张快照的数据比较密集，1.10至7.9的全部订单快照都处理出来的话数据量比较庞大，且维护Order Book的耗时比较长，因此我从给出的六个月的数据中维护了一个月左右的Order Book进行训练。我处理了000069号股票从1.23至2.19的订单数据，并按照9：1分割为训练集与测试集。我取SEQ_LEN为49，即通过前49个Order Book快照内147s的交易信息，预测下一个3s快照的买方最优一档价格。通过对Transformer模型进行了10 Epoch的训练，模型对测试集的预测效果为MSELoss=0.00658。根据train_loss下降曲线看，10个Epoch还没有达到收敛，理论上多跑几个epoch可能会有更好的预测结果（因为我在Colab上用GPU有使用限制，没有进一步尝试）
 
-![000069 train loss](/workspaces/quant-project/000069_train_loss.png)
+![000069 train loss](000069_train_loss.png)
 
-![000069 prediction](/workspaces/quant-project/000069_pre.png)
+![000069 prediction](000069_pre.png)
 
 对于更大的数据集，模型的预测效果不那么好，我尝试处理出000069号股票从1.10至3.26的数据，但模型的收敛速度很慢，经过10个Epoch后train_loss波动仍然很大，测试集预测结果显示近乎为一条直线，虽然能够预测到一些剧烈的价格变化。对于更小的数据集，模型也无法给出很好的预测，比如002304号股票1.10-1.13三天的数据，模型似乎提取不出有用的特征信息，预测效果在MSELoss=0.3左右波动。
 
 我类似地处理了000566、000876、002304、002841、002918号股票数据，对于其中的一些股票数据，模型可以较快的收敛，但收敛后的loss仍然不低。比如模型在002918号股票从1.10至2.6的数据上得到的预测效果为MSELoss=0.0242，我训练了50个Epoch，发现在接近20个Epoch左右train_loss已经基本收敛了，因此这应该已经达到模型预测表现的上限。
 
-![002841 train loss](/workspaces/quant-project/002841_train_loss.png)
+![002841 train loss](002841_train_loss.png)
 
-![002841 prediction](/workspaces/quant-project/002841_pre.png)
+![002841 prediction](002841_pre.png)
 
 ## 误差和改进策略
 
